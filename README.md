@@ -5,7 +5,7 @@
 ![The Lux Motors Banner](./screenshots/banner.png) *(Placeholder for Banner)*
 
 ## 🚀 Live Demo
-[View Live Demo Here](https://theluxmotors-demo.com) *(Update with your deployment link)*
+[View Live Demo Here](https://the-lux-motors.vercel.app/) *(Update with your deployment link)*
 
 ## ✨ Features
 * **Immersive Showroom**: A stunning, responsive UI built with dark luxury aesthetics, utilizing Stitches for precise styling and Framer Motion for buttery-smooth micro-animations.
