@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchBookings, updateBookingStatus } from '../api/bookings';
+import AdminCarsPanel from '../components/AdminCarsPanel';
 
 const STATUS_COLORS = {
     pending:   'text-yellow-400 border-yellow-400/40 bg-yellow-400/10',
@@ -80,6 +81,7 @@ export default function AdminDashboard() {
                     {/* Nav */}
                     <nav className="flex-1 py-8 px-4">
                         {[
+                            { id: 'cars', label: 'Car Inventory', icon: '🚗' },
                             { id: 'bookings', label: 'Test Drive Bookings', icon: '📋' },
                             { id: 'overview', label: 'Overview',             icon: '📊' },
                         ].map(item => (
@@ -117,7 +119,7 @@ export default function AdminDashboard() {
                     <div className="sticky top-0 z-30 bg-[#080808]/90 backdrop-blur border-b border-[#1a1a1a] px-10 py-5 flex justify-between items-center">
                         <div>
                             <h1 className="text-lg text-[#f3f4f6] font-light" style={{ fontFamily: '"Playfair Display", serif' }}>
-                                {activeTab === 'bookings' ? 'Test Drive Bookings' : 'Overview'}
+                                {activeTab === 'bookings' ? 'Test Drive Bookings' : activeTab === 'cars' ? 'Car Inventory' : 'Overview'}
                             </h1>
                             <p className="text-[10px] text-[#555] mt-0.5 uppercase tracking-[0.1em]">
                                 The Lux Admin
@@ -154,6 +156,9 @@ export default function AdminDashboard() {
                                 <p className="text-[12px] text-[#555]">More analytics coming soon.</p>
                             </div>
                         )}
+
+                        {/* ── Cars Tab ── */}
+                        {activeTab === 'cars' && <AdminCarsPanel />}
 
                         {/* ── Bookings Tab ── */}
                         {activeTab === 'bookings' && (

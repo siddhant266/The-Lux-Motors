@@ -67,3 +67,42 @@ export async function fetchCarsByCategory(category) {
     const cars = Array.isArray(data) ? data : (data.cars || data.data || []);
     return cars.map(normalizeCar);
 }
+
+// ─── Admin Methods ───────────────────────────────────────────────────────────
+
+export async function createCar(carData, token) {
+    const res = await fetch(`${BASE_URL}/api/cars`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(carData)
+    });
+    if (!res.ok) throw new Error('Failed to create car');
+    return res.json();
+}
+
+export async function updateCar(id, carData, token) {
+    const res = await fetch(`${BASE_URL}/api/cars/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(carData)
+    });
+    if (!res.ok) throw new Error('Failed to update car');
+    return res.json();
+}
+
+export async function deleteCar(id, token) {
+    const res = await fetch(`${BASE_URL}/api/cars/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+    if (!res.ok) throw new Error('Failed to delete car');
+    return res.json();
+}

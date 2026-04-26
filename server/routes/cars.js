@@ -36,4 +36,42 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+const requireAuth = require('../middleware/auth');
+
+// POST /api/cars
+router.post('/', requireAuth, async (req, res) => {
+    try {
+        const newCar = new Car(req.body);
+        const savedCar = await newCar.save();
+        res.status(201).json(savedCar);
+    } catch (err) {
+        console.error('[POST /api/cars]', err.message);
+        res.status(500).json({ error: 'Failed to create car' });
+    }
+});
+
+// PUT /api/cars/:id
+router.put('/:id', requireAuth, async (req, res) => {
+    try {
+        const updatedCar = await Car.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!updatedCar) return res.status(404).json({ error: 'Car not found' });
+        res.json(updatedCar);
+    } catch (err) {
+        console.error('[PUT /api/cars/:id]', err.message);
+        res.status(500).json({ error: 'Failed to update car' });
+    }
+});
+
+// DELETE /api/cars/:id
+router.delete('/:id', requireAuth, async (req, res) => {
+    try {
+        const deletedCar = await Car.findByIdAndDelete(req.params.id);
+        if (!deletedCar) return res.status(404).json({ error: 'Car not found' });
+        res.json({ message: 'Car deleted successfully' });
+    } catch (err) {
+        console.error('[DELETE /api/cars/:id]', err.message);
+        res.status(500).json({ error: 'Failed to delete car' });
+    }
+});
+
 module.exports = router;

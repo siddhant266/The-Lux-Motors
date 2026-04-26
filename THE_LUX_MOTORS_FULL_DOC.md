@@ -1,508 +1,811 @@
-# 📘 The Lux Motors — Full Project Documentation
+# The Lux Motors - Full Project Documentation
 
-> **Purpose of this doc:** A complete, plain-English walkthrough of everything the project does right now, how it does it, and what still needs to be built — so you can plan next features confidently.
-
----
-
-## 1. What Is This Project?
-
-**The Lux Motors** is a premium luxury car dealership website.
-
-Think of it like a digital showroom — visitors can browse a curated collection of high-end cars, explore by category, and book a test drive. There is also an admin login portal (for the dealer/owner to manage the listing).
-
-It is a **Full-Stack web application** with:
-- A **React frontend** (what users see in the browser)
-- An **Express.js backend** (the server that handles data)
-- A **MongoDB database** (where car data is stored)
+> This document reflects the current state of the project as of April 2026. It explains what is built, how the frontend and backend connect, what is working, and what still needs attention.
 
 ---
 
-## 2. High-Level Architecture
+## 1. Project Overview
 
+**The Lux Motors** is a full-stack luxury car showroom web application.
+
+Visitors can:
+- View the premium homepage.
+- Browse cars by category.
+- Open a detailed page for each car.
+- View a car image gallery, specifications, price, and description.
+- Submit a test drive booking request.
+- Open WhatsApp contact from key CTA areas.
+
+Admins can:
+- Log in using the admin login page.
+- Access a protected dashboard.
+- View submitted test drive bookings.
+- Update booking status as `pending`, `confirmed`, or `cancelled`.
+
+The app uses:
+- **React + Vite** for the frontend.
+- **Express.js** for the backend API.
+- **MongoDB + Mongoose** for database storage.
+- **JWT authentication** for the admin dashboard.
+- **Tailwind CSS utility classes** for most UI styling.
+- **Lucide React** for icons.
+
+---
+
+## 2. Current Architecture
+
+```text
+User Browser
+  |
+  | React + Vite frontend
+  | http://localhost:5173
+  |
+  | fetch()
+  v
+Express API server
+  |
+  | http://localhost:5000
+  |
+  | Mongoose
+  v
+MongoDB
 ```
-┌──────────────────────────────┐
-│     User's Browser           │
-│  React + Vite (Port 5173)    │
-│                              │
-│  - Views pages               │
-│  - Fetches car data via API  │
-│  - Books test drive          │
-└──────────────┬───────────────┘
-               │  HTTP requests (fetch)
-               ▼
-┌──────────────────────────────┐
-│   Express.js Server          │
-│   (Port 5000)                │
-│                              │
-│  - /api/cars  → all cars     │
-│  - /api/cars?featured=true   │
-│  - /api/cars/:id             │
-│  - /health (status check)    │
-└──────────────┬───────────────┘
-               │  Mongoose queries
-               ▼
-┌──────────────────────────────┐
-│   MongoDB Database           │
-│   (MongoDB Atlas / Local)    │
-│                              │
-│  Collection: cars            │
-│  Fields: name, brand,        │
-│  category, engine, images,   │
-│  price, is_featured...       │
-└──────────────────────────────┘
+
+Main API areas:
+- `/api/cars` for car inventory.
+- `/api/auth` for admin login.
+- `/api/bookings` for test drive requests.
+- `/health` for server health checks.
+
+---
+
+## 3. Important Commands
+
+### Frontend
+
+Run from the project root:
+
+```bash
+npm run dev
+npm run build
+npm run lint
+npm run preview
+```
+
+Frontend default URL:
+
+```text
+http://localhost:5173
+```
+
+### Backend
+
+Run from the `server/` folder:
+
+```bash
+npm run dev
+npm start
+```
+
+Backend default URL:
+
+```text
+http://localhost:5000
+```
+
+Required backend environment variables in `server/.env`:
+
+```env
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+PORT=5000
+```
+
+Optional frontend environment variable:
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+If `VITE_API_URL` is not set, the frontend falls back to `http://localhost:5000`.
+
+---
+
+## 4. Frontend Folder Structure
+
+```text
+src/
+  api/
+    auth.js              Admin login API call
+    bookings.js          Booking submit/fetch/update API calls
+    cars.js              Car fetch helpers and normalizer
+
+  components/
+    CarCard.jsx          Reusable vehicle card
+    Header.jsx           Fixed navigation/header
+    Hero.jsx             Legacy/unused hero component
+    ProtectedRoute.jsx   Guards admin routes
+
+    home/
+      BookingModal.jsx
+      CategoriesSection.jsx
+      constants.js
+      ExperienceSection.jsx
+      FeaturedSection.jsx
+      Footer.jsx
+      HeroSection.jsx
+      MarqueeStrip.jsx
+      StatsSection.jsx
+      TestDriveCTA.jsx
+      index.js
+
+  context/
+    AuthContext.jsx      Stores admin user/token and exposes login/logout
+
+  hooks/
+    useCars.js           Loads all cars and featured cars
+    useReveal.js         Scroll reveal helper for elements with .reveal
+
+  pages/
+    AdminDashboard.jsx
+    CarDetailPage.jsx
+    CategoryPage.jsx
+    Homepage.jsx
+    LoginPage.jsx
+
+  utils/
+    formatters.js        Price formatting helper
+
+  App.jsx                Route definitions
+  main.jsx               React entry point
+  index.css              Global CSS, fonts, animations, scrollbars
 ```
 
 ---
 
-## 3. Folder Structure Explained
+## 5. Backend Folder Structure
 
-```
-The Lux Motors/
-│
-├── src/                        ← All React frontend code
-│   ├── pages/                  ← The 3 full pages of the site
-│   │   ├── Homepage.jsx        ← Main landing page
-│   │   ├── CategoryPage.jsx    ← Browse all cars by category
-│   │   └── LoginPage.jsx       ← Admin login screen
-│   │
-│   ├── components/             ← Reusable UI pieces
-│   │   ├── Header.jsx          ← Top navigation bar
-│   │   ├── CarCard.jsx         ← Single car card (used in CategoryPage)
-│   │   ├── Hero.jsx            ← (Legacy/unused — replaced by HeroSection)
-│   │   └── home/               ← All homepage-specific sections
-│   │       ├── HeroSection.jsx
-│   │       ├── StatsSection.jsx
-│   │       ├── MarqueeStrip.jsx
-│   │       ├── CategoriesSection.jsx
-│   │       ├── FeaturedSection.jsx
-│   │       ├── ExperienceSection.jsx
-│   │       ├── TestDriveCTA.jsx
-│   │       ├── BookingModal.jsx
-│   │       ├── Footer.jsx
-│   │       └── constants.js    ← Category icons/metadata
-│   │
-│   ├── hooks/                  ← Custom React logic
-│   │   ├── useCars.js          ← Fetches all + featured cars
-│   │   └── useReveal.js        ← Scroll-based animation trigger
-│   │
-│   ├── api/                    ← All API call functions
-│   │   └── cars.js             ← fetch wrappers + data normalizer
-│   │
-│   ├── App.jsx                 ← Route definitions
-│   └── main.jsx                ← React entry point
-│
-├── server/                     ← Backend (Node.js / Express)
-│   ├── index.js                ← Server entry, DB connect, middleware
-│   ├── models/
-│   │   └── Car.js              ← MongoDB Car schema
-│   ├── routes/
-│   │   └── cars.js             ← API route handlers
-│   └── .env                    ← MONGO_URI, PORT (secret config)
-│
-├── index.html                  ← HTML shell
-├── vite.config.js              ← Build config
-└── package.json                ← Frontend dependencies
+```text
+server/
+  index.js               Express setup, MongoDB connection, routes
+  package.json
+  .env                   Local secrets/config
+
+  middleware/
+    auth.js              JWT auth middleware for protected admin routes
+
+  models/
+    Booking.js           Test drive booking schema
+    Car.js               Car inventory schema
+    User.js              Admin user schema with password hashing
+
+  routes/
+    auth.js              Login and seed-admin route
+    bookings.js          Booking create/list/status routes
+    cars.js              Car list/detail routes
 ```
 
 ---
 
-## 4. Pages — How Each One Works
+## 6. Frontend Routes
 
-### 4.1 🏠 Homepage (`/`)
+Routes are defined in `src/App.jsx`.
 
-**File:** `src/pages/Homepage.jsx`
-
-This is the main page. When it loads, it does the following:
-
-**Step 1 — Data Fetch**
-```
-Homepage mounts
-    → calls useCars() hook
-        → simultaneously fetches:
-            ① GET /api/cars           → all cars
-            ② GET /api/cars?featured=true  → featured cars only
-        → if featured = empty, falls back to first 6 of all cars
-    → sets loading = true while waiting
-    → shows "LOADING COLLECTION..." screen
-    → once done, renders all sections
-```
-
-**Step 2 — Sections rendered (top to bottom)**
-
-| # | Section | What it shows |
+| Route | Page | Status |
 |---|---|---|
-| 1 | **Header** | Fixed nav bar — "THE LUX" logo + Models link + "Book a Test Drive" button |
-| 2 | **HeroSection** | Full-screen auto-sliding car image gallery |
-| 3 | **StatsSection** | 3–4 numbers (e.g. "150+ Cars", "12 Years", etc.) |
-| 4 | **MarqueeStrip** | Scrolling text strip with brand names |
-| 5 | **CategoriesSection** | Accordion-style category cards (hover to expand) |
-| 6 | **FeaturedSection** | Grid of featured cars with filter tabs |
-| 7 | **ExperienceSection** | Lifestyle/brand storytelling block |
-| 8 | **TestDriveCTA** | Full-width call-to-action to schedule a test drive |
-| 9 | **Footer** | Links, contact, branding |
-| 10 | **BookingModal** | Pops up when user clicks "Book a Test Drive" |
+| `/` | `Homepage.jsx` | Working |
+| `/models` | `CategoryPage.jsx` | Working |
+| `/car/:id` | `CarDetailPage.jsx` | Working |
+| `/login` | `LoginPage.jsx` | Working |
+| `/admin/dashboard` | `AdminDashboard.jsx` inside `ProtectedRoute` | Working after login |
 
-**Step 3 — Test Drive Booking Flow**
-```
-User clicks "Book a Test Drive" (Header or CTA)
-    → showModal state = true
-    → BookingModal appears as overlay
+---
 
-User fills: Name, Phone, Preferred Vehicle
-    → clicks "Submit Form"
-        → currently: just shows alert("Form submitted!") ⚠️ NOT SAVED
-    OR clicks "WhatsApp Us"
-        → opens WhatsApp link (hardcoded number: 1234567890) ⚠️ WRONG NUMBER
-```
+## 7. Homepage Current Behavior
 
-**Step 4 — URL-based modal trigger**
-```
-If user visits /?bookTestDrive=1
-    → URL param detected
-    → modal auto-opens
-    → param cleaned from URL
+File: `src/pages/Homepage.jsx`
+
+The homepage loads car data through `useCars()`, then renders the main showroom sections.
+
+Section order:
+
+1. `Header`
+2. `HeroSection`
+3. `StatsSection`
+4. `MarqueeStrip`
+5. `CategoriesSection`
+6. `FeaturedSection`
+7. `ExperienceSection`
+8. `TestDriveCTA`
+9. `Footer`
+10. `BookingModal` when opened
+
+Current notes:
+- The category section is now static. The previous accordion grow/shrink animation was removed.
+- Category cards use real Lucide icons.
+- The Sedan category uses a safer fallback image to avoid the broken image issue.
+- The homepage booking modal posts real booking data to the backend.
+
+---
+
+## 8. Category Section
+
+File: `src/components/home/CategoriesSection.jsx`
+
+Current behavior:
+- Shows category cards for:
+  - Vintage
+  - Sports
+  - Sedan
+  - Adventure
+  - Ultra Luxury
+- Cards are static equal-width grid cards on desktop.
+- No accordion animation.
+- No hover image zoom.
+- Category descriptions are always visible.
+- Icons come from `lucide-react`.
+- Images are selected from car data when available, with category fallbacks.
+- Sedan has a dedicated fallback image because the first database image was breaking visually.
+
+Clicking a card navigates to:
+
+```text
+/models?category=Sedan
 ```
 
 ---
 
-### 4.2 🚗 HeroSection — The Slider
+## 9. Featured Cars
 
-**File:** `src/components/home/HeroSection.jsx`
+File: `src/components/home/FeaturedSection.jsx`
 
-```
-On mount:
-    If featuredCars (from DB) exist → use those (top 5)
-    Else → use 5 static hardcoded slides (Porsche, BMW, Merc, Audi, Mustang)
+Current behavior:
+- Receives featured cars from the homepage.
+- Shows filter tabs.
+- Filters client-side by category.
+- Uses `CarCard.jsx` for each car.
+- Clicking a car navigates to `/car/:id`.
 
-Timer logic:
-    Every 4 seconds → move to next slide (auto)
-    If user manually clicks a dot → next auto-advance = 7 seconds
-
-What's shown per slide:
-    - Full-screen background image
-    - Car name (e.g. "Porsche 911 Turbo S")
-    - Engine spec (e.g. "3.8L Twin-Turbo Flat-6")
-    - Slide counter top-right (01 / 05)
-    - Dot pagination at bottom center
-    - "Scroll" hint at bottom-left
-```
+`CarCard.jsx` currently shows:
+- First image.
+- Category/year.
+- Car name.
+- Price display or formatted numeric price.
+- Explore text.
 
 ---
 
-### 4.3 🗂️ CategoriesSection — The Accordion
+## 10. Category/Browse Page
 
-**File:** `src/components/home/CategoriesSection.jsx`
+File: `src/pages/CategoryPage.jsx`
 
+Route:
+
+```text
+/models
 ```
-Shows 6 category cards side by side:
-    Vintage | Sports | Sedan | Adventure | Ultra Luxury | (+ more)
 
-Hover effect:
-    Hovered card → expands width (flex-grow: 3)
-    Others → shrink (flex-grow: 0.6)
-    → Smooth CSS transition (0.55s cubic-bezier)
+Current behavior:
+- Fetches all cars from `GET /api/cars`.
+- Supports URL query category filtering:
 
-Image logic:
-    For each category, finds the FIRST car from DB with that category
-    and uses its first image as background → dynamic, not hardcoded
-
-Click → navigates to /models?category=Sports
+```text
+/models?category=Sports
 ```
+
+- Category filter is client-side after the initial fetch.
+- Uses `CarCard.jsx`.
+- Empty category states are handled.
+- Loading state is shown while data is being fetched.
 
 ---
 
-### 4.4 🏆 FeaturedSection — Car Grid
+## 11. Car Detail Page
 
-**File:** `src/components/home/FeaturedSection.jsx`
+File: `src/pages/CarDetailPage.jsx`
 
+Route:
+
+```text
+/car/:id
 ```
-Receives featuredCars from DB
 
-Filter tabs: All | Vintage | Sports | Sedan | Adventure | Ultra Luxury
-    → Client-side filter (no new API call)
+Current behavior:
+- Fetches one car from `GET /api/cars/:id`.
+- Shows a premium detail layout.
+- Shows brand, category, year, price, overview, specs, and CTAs.
+- Includes a framed car gallery using `object-contain`, so car images are not aggressively cropped.
+- Gallery includes:
+  - Main contained image.
+  - Previous/next arrow buttons.
+  - Thumbnail buttons.
+- Includes a sticky concierge/action panel.
+- User can:
+  - Book a test drive.
+  - Open WhatsApp.
 
-Each car card shows:
-    - Car image (first from images[] array)
-    - "Featured" badge (if is_featured = true)
-    - Category · Year
-    - Car name
-    - Price (price_display string or ₹{price})
-    - "Explore →" link → goes to /car/:id  ⚠️ PAGE DOESN'T EXIST YET
-```
+Car detail booking modal:
+- Asks for name, phone, and optional message.
+- Sends data to `POST /api/bookings`.
+- Uses the car name as `preferredVehicle`.
+- Shows success state after submission.
 
 ---
 
-### 4.5 📋 Category Page (`/models`)
+## 12. Login and Authentication
 
-**File:** `src/pages/CategoryPage.jsx`
+### Login Page
 
+File:
+
+```text
+src/pages/LoginPage.jsx
 ```
-On mount:
-    → fetchAllCars() → GET /api/cars
-    → shows "LOADING COLLECTION..."
-    → renders grid
 
-Filter tabs: All | Vintage | Sports | Sedan | Adventure | Ultra Luxury
-    → filter synced to URL ?category=Sports (shareable)
-    → client-side filtering (no refetch)
+Route:
 
-Car grid: 1-2-3 column responsive
-    → each car = <CarCard /> component
-    → clicking a card → /car/:id  ⚠️ PAGE DOESN'T EXIST YET
+```text
+/login
 ```
+
+Current behavior:
+- Login is connected to the backend.
+- Submits email/password to `POST /api/auth/login`.
+- On success, stores:
+  - JWT token
+  - user object
+- Redirects to `/admin/dashboard`.
+- Shows API error messages for invalid login.
+
+### Auth Context
+
+File:
+
+```text
+src/context/AuthContext.jsx
+```
+
+Current behavior:
+- Stores `user` and `token`.
+- Persists them in `localStorage` as:
+  - `lux_token`
+  - `lux_user`
+- Exposes:
+  - `login(userData, jwtToken)`
+  - `logout()`
+  - `isAdmin`
+
+### Protected Route
+
+File:
+
+```text
+src/components/ProtectedRoute.jsx
+```
+
+Current behavior:
+- Allows access when `isAdmin` is true.
+- Redirects unauthenticated users to `/login`.
+
+Important limitation:
+- `isAdmin` currently means a user exists in auth context. It does not check role deeply on the frontend.
+- Backend-protected routes still require a valid JWT.
 
 ---
 
-### 4.6 🔐 Login Page (`/login`)
+## 13. Admin Dashboard
 
-**File:** `src/pages/LoginPage.jsx`
+File:
 
+```text
+src/pages/AdminDashboard.jsx
 ```
-Split screen layout:
-    Left → Decorative car photo with floating animation + quote
-    Right → Login form
 
-Form fields: Email + Password
-    
-Validation (client-side only):
-    - Email: required + format check
-    - Password: required + min 6 chars
-    - On error: red highlights + shake animation
+Route:
 
-Submit:
-    → Fake 1.8s loading spinner
-    → Navigates to /admin/dashboard  ⚠️ THAT ROUTE DOESN'T EXIST
-    → NO real authentication, no token, no backend call
+```text
+/admin/dashboard
 ```
+
+Current behavior:
+- Protected by `ProtectedRoute`.
+- Fetches bookings using the JWT token.
+- Shows booking stats:
+  - total
+  - pending
+  - confirmed
+  - cancelled
+- Lists booking records in a table.
+- Lets admin update booking status.
+- Has logout behavior.
+
+Current limitation:
+- Admin can manage bookings only.
+- There is no UI yet for adding, editing, or deleting cars.
 
 ---
 
-## 5. Backend — How the Server Works
+## 14. Backend API
 
-**File:** `server/index.js`
+Base URL:
 
-```
-Server starts:
-    1. Reads MONGO_URI from .env
-    2. Connects to MongoDB via Mongoose
-    3. On success → starts listening on Port 5000
-    4. On failure → logs error + exits process
-
-Middleware:
-    - CORS: allows requests from localhost:5173 and localhost:3000
-    - express.json(): parses JSON request bodies
+```text
+http://localhost:5000
 ```
 
-### API Endpoints
+### Health
 
-| Method | Endpoint | Query Params | What it returns |
+| Method | Endpoint | Auth | Purpose |
 |---|---|---|---|
-| GET | `/api/cars` | — | All cars (with images) |
-| GET | `/api/cars` | `?featured=true` | Only `is_featured: true` cars |
-| GET | `/api/cars` | `?category=Sports` | Cars matching category (case-insensitive) |
-| GET | `/api/cars` | `?limit=5` | Limited number of cars |
-| GET | `/api/cars/:id` | — | Single car by MongoDB `_id` |
-| GET | `/health` | — | `{ status: "ok" }` (health check) |
+| GET | `/health` | No | Returns `{ status: "ok" }` |
 
-> **Note:** Only READ (GET) endpoints exist. There is no way to add, edit or delete cars via the API yet.
+### Cars
 
----
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/cars` | No | Get all cars with images |
+| GET | `/api/cars?featured=true` | No | Get featured cars |
+| GET | `/api/cars?category=Sedan` | No | Get cars by category |
+| GET | `/api/cars?limit=5` | No | Limit result count |
+| GET | `/api/cars/:id` | No | Get one car by MongoDB ID |
 
-## 6. Database — Car Data Model
+Important implementation detail:
+- `GET /api/cars` filters out cars with empty images:
 
-**File:** `server/models/Car.js`
-
-Every car document in MongoDB has these fields:
-
-| Field | Type | Description |
-|---|---|---|
-| `name` | String *(required)* | e.g. "Porsche 911 Turbo S" |
-| `brand` | String | e.g. "Porsche" |
-| `category` | String | "Sports", "Vintage", "Sedan", etc. |
-| `year` | Number | e.g. 2023 |
-| `description` | String | Long text description |
-| `engine` | String | e.g. "3.8L Twin-Turbo Flat-6" |
-| `top_speed` | String | e.g. "330 km/h" |
-| `acceleration` | String | e.g. "0–100 in 2.7s" |
-| `seats` | Number | e.g. 2 |
-| `fuel_type` | String | "Petrol", "Electric", etc. |
-| `price_display` | String | e.g. "₹2.5 Cr" |
-| `price` | Number | Raw number for sorting |
-| `images` | [String] | Array of image URLs |
-| `is_featured` | Boolean | Whether to show in featured sections |
-| `createdAt` / `updatedAt` | Date | Auto-managed by Mongoose |
-
----
-
-## 7. Data Flow — End to End
-
-Here is the complete journey from database to what the user sees:
-
+```js
+filter.images = { $exists: true, $ne: [] };
 ```
-MongoDB (Atlas)
-    ↓  Car.find({ is_featured: true })
-Express Route  /api/cars?featured=true
-    ↓  res.json(cars)
-Frontend  src/api/cars.js → fetchFeaturedCars()
-    ↓  normalizeCar() maps DB fields → camelCase frontend shape
-    ↓  top_speed → topSpeed, is_featured → isFeatured, etc.
-Custom Hook  src/hooks/useCars.js
-    ↓  { allCars, featuredCars, loading, error }
-Homepage.jsx
-    ↓  heroCars = featuredCars.slice(0, 5)
-    ↓  passes cars as props to each section
-HeroSection / FeaturedSection / CategoriesSection
-    ↓  renders car images, names, prices, etc.
-User's screen ✅
+
+Current limitation:
+- There are no car create/update/delete API routes yet.
+
+### Authentication
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/auth/login` | No | Login admin and return JWT |
+| POST | `/api/auth/seed-admin` | No | Create default admin user if missing |
+
+Default seed-admin user:
+
+```text
+email: admin@thelux.com
+password: thelux2024
+```
+
+Security note:
+- `/api/auth/seed-admin` should be disabled or protected before production deployment.
+
+### Bookings
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/bookings` | No | Create a test drive booking |
+| GET | `/api/bookings` | Bearer token | List all bookings newest first |
+| PATCH | `/api/bookings/:id/status` | Bearer token | Update status |
+
+Allowed booking statuses:
+
+```text
+pending
+confirmed
+cancelled
 ```
 
 ---
 
-## 8. Design System
+## 15. Database Models
 
-### Color Palette
-| Name | Hex | Used For |
+### Car
+
+File:
+
+```text
+server/models/Car.js
+```
+
+Fields:
+
+| Field | Type | Notes |
 |---|---|---|
-| Gold | `#bda588`, `#e9c176`, `#C9A84C` | Accents, buttons, borders, labels |
-| Dark BG | `#080808`, `#0a0a0a`, `#111` | Page backgrounds |
-| Off-white | `#f3f4f6`, `#e5e2e1`, `#F5F0E8` | Headings, text |
-| Muted | `#888`, `#666`, `#a0a0a0` | Sub-labels, secondary text |
-| Danger | `#e05555` | Validation errors |
+| `name` | String | Required |
+| `brand` | String | Optional |
+| `category` | String | Optional |
+| `year` | Number | Optional |
+| `description` | String | Optional |
+| `engine` | String | Optional |
+| `top_speed` | String | Optional |
+| `acceleration` | String | Optional |
+| `seats` | Number | Optional |
+| `fuel_type` | String | Optional |
+| `price_display` | String | Optional |
+| `price` | Number | Optional raw numeric price |
+| `images` | Array of strings | Image URLs |
+| `is_featured` | Boolean | Defaults to false |
+| `createdAt` / `updatedAt` | Date | Added by timestamps |
+
+Frontend normalized shape from `src/api/cars.js`:
+
+```js
+{
+  id,
+  name,
+  brand,
+  category,
+  year,
+  description,
+  engine,
+  topSpeed,
+  acceleration,
+  seats,
+  fuelType,
+  priceDisplay,
+  price,
+  images,
+  isFeatured
+}
+```
+
+### Booking
+
+File:
+
+```text
+server/models/Booking.js
+```
+
+Fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | String | Required |
+| `phone` | String | Required |
+| `preferredVehicle` | String | Defaults to empty string |
+| `message` | String | Defaults to empty string |
+| `status` | String | `pending`, `confirmed`, or `cancelled` |
+| `createdAt` / `updatedAt` | Date | Added by timestamps |
+
+### User
+
+File:
+
+```text
+server/models/User.js
+```
+
+Fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| `email` | String | Required, unique, lowercase |
+| `password` | String | Required, hashed with bcrypt before save |
+| `role` | String | Only `admin` currently |
+| `name` | String | Defaults to `Admin` |
+| `createdAt` / `updatedAt` | Date | Added by timestamps |
+
+---
+
+## 16. Data Flow
+
+### Homepage data
+
+```text
+Homepage
+  -> useCars()
+  -> fetchAllCars() and fetchFeaturedCars()
+  -> GET /api/cars
+  -> GET /api/cars?featured=true
+  -> normalizeCar()
+  -> render HeroSection, CategoriesSection, FeaturedSection
+```
+
+### Car detail data
+
+```text
+CarCard click
+  -> /car/:id
+  -> CarDetailPage
+  -> fetchCarById(id)
+  -> GET /api/cars/:id
+  -> normalizeCar()
+  -> render gallery, specs, price, booking CTA
+```
+
+### Booking data
+
+```text
+User submits booking
+  -> submitBooking()
+  -> POST /api/bookings
+  -> Booking.create()
+  -> AdminDashboard can fetch it later
+```
+
+### Admin data
+
+```text
+Admin logs in
+  -> POST /api/auth/login
+  -> receives JWT
+  -> token saved in localStorage
+  -> AdminDashboard
+  -> GET /api/bookings with Authorization header
+```
+
+---
+
+## 17. Design System Notes
+
+### Main colors
+
+| Usage | Colors |
+|---|---|
+| Backgrounds | `#050505`, `#080808`, `#0a0a0a`, `#111` |
+| Gold accents | `#bda588`, `#d8bf97`, `#e9c176`, `#9f7e3a` |
+| Text | `#f3f4f6`, `#e5e2e1`, `#a0a0a0`, `#888`, `#666` |
+| Error | red tones such as `text-red-400` |
 
 ### Typography
-| Font | Style | Used For |
-|---|---|---|
-| Playfair Display | Serif | All headings (H1, H2, H3) |
-| Montserrat | Sans-serif | Labels, buttons, body copy |
-| Cormorant Garamond | Elegant Serif | Login page only |
 
-### Animations & Effects
-- **Film grain overlay** — CSS SVG noise texture on all pages
-- **Scroll reveal** — Elements fade in as user scrolls (`useReveal` hook)
-- **Hero slider** — Crossfade between images (opacity transition, 1s duration)
-- **Category accordion** — Horizontal flex-grow expand on hover
-- **Card hover** — Lift + shadow + gold border on car cards
-- **Shimmer button** — Animated gradient on Login submit button
-- **Shake animation** — Form shakes on validation error
+Global font import is in `src/index.css`.
 
----
+| Font | Usage |
+|---|---|
+| Playfair Display | Main headings, car names, luxury-style display text |
+| Montserrat | Body text, labels, nav, buttons |
+| Cormorant Garamond | Login page decorative typography |
 
-## 9. Header Behavior
+### Animations currently used
 
-**File:** `src/components/Header.jsx`
-
-```
-Default state (Homepage, not scrolled):
-    → Transparent background
-    → Larger padding
-
-After scroll (> 32px) or on other pages:
-    → Frosted glass: dark bg + backdrop-blur
-    → Compact padding
-
-Nav links:
-    → "Models" → /models (active)
-    → "Lifestyle" → # (placeholder, no page)
-    → "Heritage" → # (placeholder, no page)
-
-"Book a Test Drive" button:
-    → If on Homepage → opens BookingModal directly
-    → If on another page → navigates to /?bookTestDrive=1
-         → Homepage detects param → auto-opens modal
-```
+- Homepage hero slider transitions.
+- Scroll reveal for selected `.reveal` elements.
+- Car card fade-up via `.card-pop`.
+- Header scroll transition.
+- Login page shimmer/spinner/shake effects.
+- Category section accordion animation has been removed.
 
 ---
 
-## 10. What Is Working ✅ vs What Is Not ❌
+## 18. Current Working Status
 
-### ✅ Working & Complete
-- Homepage loads and shows all 8 sections
-- Hero slider auto-advances, manual dot control works
-- Car data fetched live from MongoDB (all + featured)
-- Category accordion expand/shrink animation on hover
-- Featured section filter tabs (client-side)
-- Category page (`/models`) with URL-synced filters
-- Header scroll behavior (transparent → frosted glass)
-- "Book a Test Drive" modal opens and shows form
-- WhatsApp button opens WhatsApp (TestDriveCTA section)
-- Loading and error states on data-heavy pages
-- Scroll reveal animations (`useReveal`)
-- Admin login page UI is fully designed
+### Working
 
----
+- Frontend builds successfully.
+- ESLint passes.
+- Backend health endpoint works when server is running.
+- Homepage loads live cars.
+- Featured cars render.
+- Category browse page works.
+- Car detail page exists and fetches individual car data.
+- Car detail gallery shows images in a contained frame to avoid bad cropping.
+- Test drive bookings are saved to MongoDB.
+- Admin login is connected to backend authentication.
+- Admin dashboard is protected.
+- Admin dashboard can list bookings and update their status.
 
-### ❌ Broken / Incomplete / Missing
+### Still incomplete or needs improvement
 
-| What | Current State | Impact |
-|---|---|---|
-| **Car Detail Page** `/car/:id` | Route doesn't exist | All car links → 404. Users can't see car details |
-| **Admin Dashboard** `/admin/dashboard` | Route doesn't exist | Login redirect fails |
-| **Real Authentication** | Login is 100% fake | Anyone can log in. No security |
-| **Booking form submission** | Just shows `alert()` | Test drive requests are lost, never saved |
-| **WhatsApp number in modal** | Hardcoded as `1234567890` | Goes to wrong number |
-| **Admin Car Management** | No POST/PUT/DELETE API | Can't add/edit/delete cars without touching DB directly |
-| **"Lifestyle" & "Heritage" nav links** | Point to `#` (empty) | Dead links in navigation |
-| **Mobile/Responsive navigation** | No mobile menu (hamburger) | Nav hidden on small screens |
-| **Car search** | Not implemented | No way to search by name/keyword |
-| **Image gallery per car** | Cars have `images[]` array | Only first image ever shown — rest unused |
-| **SEO / Meta tags** | Not implemented | Bad for search engine discoverability |
+| Area | Current state |
+|---|---|
+| Car management | No admin UI/API for adding, editing, or deleting cars |
+| Seed admin route | `/api/auth/seed-admin` exists and should be disabled/protected before production |
+| Navigation | `Lifestyle` and `Heritage` still point to `#` placeholders |
+| Mobile navigation | No hamburger/mobile menu yet |
+| Search | No search by car name/brand/keyword |
+| SEO | No real meta/SEO setup yet |
+| Image reliability | Many images are external URLs, so some can break if the source blocks or removes them |
+| Deployment | No production deployment configuration documented yet |
 
 ---
 
-## 11. How to Run the Project
+## 19. Recent Project Updates
 
-### Start Frontend
+Recent improvements made in this project:
+
+- Added/confirmed `CarDetailPage.jsx` route at `/car/:id`.
+- Improved car detail page UI with a contained image gallery.
+- Added real booking submission from car detail page.
+- Connected login page to backend auth.
+- Added protected admin dashboard route.
+- Added admin booking management.
+- Fixed ESLint configuration for frontend React files and backend CommonJS files.
+- Removed category section accordion animation per preference.
+- Fixed Sedan category image fallback.
+- Replaced category text-symbol icons with Lucide icons.
+- Cleaned some broken display characters in frontend UI files.
+
+---
+
+## 20. Quality Checks
+
+Use these before considering the project healthy:
+
 ```bash
-# In project root (The Lux Motors/)
-npm run dev
-# Opens at: http://localhost:5173
+npm run lint
+npm run build
 ```
 
-### Start Backend
+Both commands were passing after the latest code updates.
+
+For backend health:
+
 ```bash
-# In server/ folder
-node index.js
-# or: npm run dev (if nodemon set up)
-# Runs at: http://localhost:5000
+curl http://localhost:5000/health
 ```
 
-> ⚠️ Make sure `server/.env` contains:
-> ```
-> MONGO_URI=mongodb+srv://...
-> PORT=5000
-> ```
+Expected:
+
+```json
+{ "status": "ok" }
+```
 
 ---
 
-## 12. Summary of All Files
+## 21. Recommended Next Steps
+
+1. Build admin car management:
+   - Add car
+   - Edit car
+   - Delete car
+   - Upload or manage image URLs
+
+2. Secure production auth:
+   - Remove or protect `/api/auth/seed-admin`.
+   - Add stronger role checks.
+   - Consider token expiry handling on frontend.
+
+3. Improve image handling:
+   - Store images in a controlled source instead of relying on random third-party URLs.
+   - Add image validation/fallbacks on all image-heavy components.
+
+4. Add mobile nav:
+   - Hamburger menu.
+   - Mobile-friendly nav links.
+   - Better header spacing on small screens.
+
+5. Add search/filter improvements:
+   - Search by name/brand.
+   - Sort by price/year.
+   - Multi-filter categories.
+
+6. Add production deployment docs:
+   - Frontend hosting.
+   - Backend hosting.
+   - MongoDB Atlas environment variables.
+   - CORS production origin.
+
+---
+
+## 22. File Purpose Summary
 
 | File | Purpose |
 |---|---|
-| `src/App.jsx` | Defines the 3 routes: `/`, `/models`, `/login` |
-| `src/main.jsx` | React entry point, wraps app in `<BrowserRouter>` |
-| `src/pages/Homepage.jsx` | Orchestrates the full homepage, manages modal state |
-| `src/pages/CategoryPage.jsx` | Browse + filter full car collection |
-| `src/pages/LoginPage.jsx` | Admin login UI (currently mocked) |
-| `src/components/Header.jsx` | Fixed nav bar with scroll-aware styling |
-| `src/components/CarCard.jsx` | Reusable car card for category page |
-| `src/components/home/HeroSection.jsx` | Full-screen image slider |
-| `src/components/home/StatsSection.jsx` | Static numbers/stats block |
-| `src/components/home/MarqueeStrip.jsx` | Scrolling brand name ticker |
-| `src/components/home/CategoriesSection.jsx` | Horizontal accordion category cards |
-| `src/components/home/FeaturedSection.jsx` | Filterable featured car grid |
-| `src/components/home/ExperienceSection.jsx` | Brand lifestyle section |
-| `src/components/home/TestDriveCTA.jsx` | Test drive call-to-action banner |
-| `src/components/home/BookingModal.jsx` | Test drive booking overlay form |
-| `src/components/home/Footer.jsx` | Page footer |
-| `src/components/home/constants.js` | Category icons + descriptions |
-| `src/hooks/useCars.js` | Parallel fetch of all + featured cars |
-| `src/hooks/useReveal.js` | Scroll-triggered reveal animation |
-| `src/api/cars.js` | All API call functions + data normalizer |
-| `server/index.js` | Express server + MongoDB connection |
-| `server/models/Car.js` | Mongoose Car schema |
-| `server/routes/cars.js` | GET /api/cars and GET /api/cars/:id |
-| `server/.env` | Secret config (MONGO_URI, PORT) |
+| `src/App.jsx` | Defines all frontend routes |
+| `src/main.jsx` | React entry point and providers |
+| `src/pages/Homepage.jsx` | Main homepage composition |
+| `src/pages/CategoryPage.jsx` | Browse/filter inventory page |
+| `src/pages/CarDetailPage.jsx` | Single car detail page with gallery and booking CTA |
+| `src/pages/LoginPage.jsx` | Admin login screen |
+| `src/pages/AdminDashboard.jsx` | Admin booking dashboard |
+| `src/context/AuthContext.jsx` | Auth state, token/user persistence |
+| `src/components/ProtectedRoute.jsx` | Protects admin dashboard route |
+| `src/components/Header.jsx` | Global navigation/header |
+| `src/components/CarCard.jsx` | Reusable car listing card |
+| `src/components/home/CategoriesSection.jsx` | Homepage category cards |
+| `src/components/home/BookingModal.jsx` | Homepage booking modal |
+| `src/api/cars.js` | Car API helpers and normalizer |
+| `src/api/auth.js` | Admin login API helper |
+| `src/api/bookings.js` | Booking API helpers |
+| `src/utils/formatters.js` | Price formatting |
+| `server/index.js` | Express server entry |
+| `server/routes/cars.js` | Car API routes |
+| `server/routes/auth.js` | Auth API routes |
+| `server/routes/bookings.js` | Booking API routes |
+| `server/middleware/auth.js` | JWT middleware |
+| `server/models/Car.js` | Car schema |
+| `server/models/Booking.js` | Booking schema |
+| `server/models/User.js` | Admin user schema |
 
 ---
 
-*This document reflects the project state as of April 2026. Use this as the base to plan new features and updates.*
+This documentation is now aligned with the current project state.
