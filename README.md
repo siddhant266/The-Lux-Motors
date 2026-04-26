@@ -2,10 +2,10 @@
 
 > A premium, high-performance web application tailored for luxury vehicle dealerships. The Lux Motors provides an elegant showroom experience and a secure, comprehensive admin dashboard for inventory and booking management.
 
-![The Lux Motors Banner](./screenshots/banner.png) *(Placeholder for Banner)*
+![The Lux Motors Banner](./screenshots/banner.png) 
 
 ## 🚀 Live Demo
-[View Live Demo Here](https://the-lux-motors.vercel.app/) *(Update with your deployment link)*
+[View Live Demo Here](https://the-lux-motors.vercel.app/) 
 
 ## ✨ Features
 * **Immersive Showroom**: A stunning, responsive UI built with dark luxury aesthetics, utilizing Stitches for precise styling and Framer Motion for buttery-smooth micro-animations.
